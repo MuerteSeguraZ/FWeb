@@ -3,7 +3,8 @@
 git add --all
 
 set "MSG=%~1"
-if "%MSG%"=="" set "MSG=feat(ws_client): add WebSocket close frame support and opcode-aware receiving"
+if "%MSG%"=="" set "MSG=Implement WebSocket ping/pong frame handling"
+"
 
 git status
 

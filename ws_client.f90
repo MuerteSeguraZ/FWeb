@@ -36,6 +36,16 @@ contains
         call tcp_send(sock, frame)
     end subroutine
 
+    subroutine send_ping(sock)
+        integer, intent(in) :: sock
+        call send_ws(sock, "", 9) ! Ping frame
+    end subroutine
+
+    subroutine send_pong(sock)
+        integer, intent(in) :: sock
+        call send_ws(sock, "", 10) ! Pong frame
+    end subroutine
+
     subroutine tcp_recv_frame(sock, frame, frame_len)
         integer, intent(in) :: sock
         integer, intent(out) :: frame(:)
@@ -93,8 +103,11 @@ contains
         case (8)  ! close frame
             print *, "Received [opcode=8]: Close request"
             call send_close(sock)
-            call tcp_close(sock)
-            stop
+        case (9) ! ping frame
+            print *, "Ping received, sending pong"
+            call send_pong(sock)
+        case (10) ! pong frame
+            print *, "Pong received"
         case default
             print *, "Received [opcode=", op, "]: (unhandled)"
         end select

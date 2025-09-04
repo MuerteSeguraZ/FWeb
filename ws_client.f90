@@ -22,13 +22,20 @@ contains
         integer :: i
 
         do i = 1, frame_len
-        buffer(i:i) = achar(frame(i))
+            buffer(i:i) = achar(frame(i))
         end do
 
         call tcp_send(sock, buffer(1:frame_len))
     end subroutine
 
-    ! Wrapper to receive TCP bytes into integer frame
+    subroutine send_close(sock)
+        integer, intent(in) :: sock
+        character(len=2) :: frame
+        frame(1:1) = char(128 + 8)
+        frame(2:2) = char(0)
+        call tcp_send(sock, frame)
+    end subroutine
+
     subroutine tcp_recv_frame(sock, frame, frame_len)
         integer, intent(in) :: sock
         integer, intent(out) :: frame(:)
@@ -45,44 +52,52 @@ contains
         end do
     end subroutine
 
-    subroutine send_ws(sock, message)
+    ! ---------- Send frame with opcode ----------
+    subroutine send_ws(sock, message, opcode)
         integer, intent(in) :: sock
         character(len=*), intent(in) :: message
+        integer, intent(in), optional :: opcode
         integer :: frame(1024)
         integer :: frame_len
+        integer :: op
 
-        call encode_frame(message, frame, frame_len)
+        if (present(opcode)) then
+            op = opcode
+        else
+            op = 1   ! default text frame
+        end if
+
+        call encode_frame(message, frame, frame_len, op)
         call tcp_send_frame(sock, frame, frame_len)
     end subroutine
 
-    subroutine recv_ws(sock, message)
+    ! ---------- Receive and decode ----------
+    subroutine recv_ws(sock, message, opcode)
         integer, intent(in) :: sock
         character(len=1024), intent(out) :: message
+        integer, intent(out), optional :: opcode
         integer :: frame(1024)
-        integer :: frame_len, payload_len
-        integer :: mask(4), i, idx, start
-        integer :: byte
+        integer :: frame_len
+        integer :: op
 
         call tcp_recv_frame(sock, frame, frame_len)
+        call decode_frame(frame, frame_len, message, op)
 
-        payload_len = iand(frame(2), 127)
+        if (present(opcode)) opcode = op
 
-        if (iand(frame(2), 128) /= 0) then
-            mask = frame(3:6)
-            start = 7
-            do i = 1, payload_len
-            idx = mod(i-1,4) + 1
-            byte = ieor(frame(start+i-1), mask(idx))
-            message(i:i) = achar(byte)
-        end do
-    else
-        start = 3
-        do i = 1, payload_len
-            message(i:i) = achar(frame(start+i-1))
-        end do
-    end if
-
-    print *, "Received: ", trim(message(1:payload_len))
+        select case (op)
+        case (1)  ! text frame
+            print *, "Received [opcode=1]:", trim(message)
+        case (2)  ! binary frame
+            print *, "Received [opcode=2] (binary data)"
+        case (8)  ! close frame
+            print *, "Received [opcode=8]: Close request"
+            call send_close(sock)
+            call tcp_close(sock)
+            stop
+        case default
+            print *, "Received [opcode=", op, "]: (unhandled)"
+        end select
 end subroutine
 
 end module

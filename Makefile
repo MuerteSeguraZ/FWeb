@@ -34,3 +34,7 @@ $(TARGET): main.f90 $(OBJS)
 
 clean:
 	del /Q *.o $(TARGET).exe
+
+new:
+	del /Q *.o $(TARGET).exe
+	make

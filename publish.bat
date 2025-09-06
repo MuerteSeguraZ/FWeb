@@ -3,8 +3,7 @@
 git add --all
 
 set "MSG=%~1"
-if "%MSG%"=="" set "MSG=Implement WebSocket ping/pong frame handling"
-"
+if "%MSG%"=="" set "MSG=Fix dynamic frame allocation bug"
 
 git status
 
